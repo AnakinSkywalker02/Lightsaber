@@ -1,0 +1,156 @@
+from microbit import *
+import neopixel
+import music
+import random
+
+num_pixels = 144
+np = neopixel.NeoPixel(pin0, num_pixels)
+
+saber_on = False
+
+colors = [
+(255,0,0),
+(0,255,0),
+(0,0,255),
+(180,0,255)
+]
+
+color_index = 1
+blade_color = colors[color_index]
+
+prev_x = 0
+prev_y = 0
+prev_z = 0
+
+
+def lightsaber_on():
+    global saber_on
+    saber_on = True
+    
+    for i in range(num_pixels):
+        np[i] = blade_color
+        np.show()
+        music.pitch(150 + i*4,8)
+        sleep(10)
+
+
+def lightsaber_off():
+    global saber_on
+    saber_on = False
+    
+    for i in range(num_pixels-1,-1,-1):
+        np[i] = (0,0,0)
+        np.show()
+        music.pitch(400 - i*3,6)
+        sleep(6)
+        
+    music.stop()
+
+
+def change_color():
+    global color_index, blade_color
+    
+    color_index += 1
+    if color_index >= len(colors):
+        color_index = 0
+        
+    blade_color = colors[color_index]
+    
+    if saber_on:
+        for i in range(num_pixels):
+            np[i] = blade_color
+        np.show()
+
+
+def hum():
+    if saber_on:
+        music.pitch(random.randint(80,120),20,wait=False)
+
+
+def motion_flicker(intensity):
+
+    if not saber_on:
+        return
+
+    flicker_leds = random.randint(3,8)
+
+    for _ in range(flicker_leds):
+
+        index = random.randint(0,num_pixels-1)
+
+        r,g,b = blade_color
+        
+        flicker = random.randint(-intensity,intensity)
+
+        np[index] = (
+            max(0,min(255,r+flicker)),
+            max(0,min(255,g+flicker)),
+            max(0,min(255,b+flicker))
+        )
+
+    np.show()
+
+
+def clash():
+
+    if not saber_on:
+        return
+        
+    leds = []
+    
+    while len(leds) < 6:
+        rnd = random.randint(0,num_pixels-1)
+        if rnd not in leds:
+            leds.append(rnd)
+    
+    for i in leds:
+        np[i] = (255,255,255)
+        
+    np.show()
+    
+    music.pitch(random.randint(1900,2100),120,wait=False)
+    
+    sleep(80)
+    
+    for i in leds:
+        np[i] = blade_color
+        
+    np.show()
+
+
+while True:
+
+    x = accelerometer.get_x()
+    y = accelerometer.get_y()
+    z = accelerometer.get_z()
+
+    movement = abs(x-prev_x) + abs(y-prev_y) + abs(z-prev_z)
+
+    prev_x = x
+    prev_y = y
+    prev_z = z
+
+
+    if pin_logo.is_touched() and not saber_on:
+        lightsaber_on()
+
+    if button_a.was_pressed() and saber_on:
+        lightsaber_off()
+
+    if button_b.was_pressed():
+        change_color()
+
+
+    if movement > 1500:
+        clash()
+
+    elif movement > 400:
+        motion_flicker(40)
+
+    elif movement > 150:
+        motion_flicker(15)
+
+
+    hum()
+
+    sleep(50)
